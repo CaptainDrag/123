@@ -272,15 +272,17 @@ def handle_client( p2pSocket, p2pAddr):
 	
 	client_socket.close()
 	
-def peer_listening():
+def peer_listening(host, port):
 	
 	peer_listen = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	peer_listen.setblocking(False)
+	#peer_listen.bind((host, port))
 	peer_listen.listen()
 	print(peer_listen.getsockname())
 	
 	while True:
 		try:
+			#print("Try to listen from peer")
 			p2pSocket, p2pAddr = peer_listen.accept()
 			print(f"Accepted connection from {p2pAddr}")
 			p2pSocket.setblocking(False)
@@ -302,11 +304,13 @@ def main(host, port):
 	# Create a socket to connect to the server
 	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	client_socket.setblocking(False)
-	
+	print(client_socket.getsockname())
 	client_socket.connect_ex((host, port))
+	print(client_socket.getsockname())
+	print(client_socket.getsockname())
 	
 	
-	p2pListening = threading.Thread(target=peer_listening, args=())
+	p2pListening = threading.Thread(target=peer_listening, args=(client_socket.getsockname()))
 	p2pListening.start()
 	HELP()
 	
@@ -343,4 +347,3 @@ if __name__ == "__main__":
 	else:
 		host, port = temp[0], int(temp[1])
 	sys.exit(main(host, port))
-
