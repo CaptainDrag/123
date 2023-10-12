@@ -3,7 +3,7 @@ import threading
 import os
 import sys
 import random 
-
+import pickle
 # Constants
 
 BUFFER_SIZE = 1024
@@ -18,6 +18,11 @@ client_data = {}
 server = None
 # Function to send a file to a client
 def ServerClear(address):
+	print(address)
+	host,port = address
+	port -= 100
+	address = host,port
+	print(address)
 	print(fileList)
 	print(fileLocation)
 	print(fileSize)
@@ -73,25 +78,26 @@ def RR(client_socket, address):
 							print("No such file(file not exist")
 							break
 						idx = temp.rindex(",")
-						filename,filesize = temp[:idx],temp[idx+1:]
+						filename,filesize,destHost,destPort =temp.split(",")
+						destPort = int(destPort)
 						print(temp)
 						print(filename)
 						print(filesize)
 						print(client_socket.getsockname())
 						print(address)
 						if str(filename) in fileList:
-							fileLocation[filename].add(address)
+							fileLocation[filename].add((destHost,destPort))
 							for i in fileChunk[filename]:
-								i.append(address)
-							fileChunk[filename][chunkNum].append(address)
+								i.append((destHost,destPort))
+							fileChunk[filename][chunkNum].append((destHost,destPort))
 						else:
 							fileList.add(str(filename))
-							fileLocation[str(filename)] = {address}
+							fileLocation[str(filename)] = {(destHost,destPort)}
 							fileSize[str(filename)] = filesize
 							fileChunk[filename] = {}
 							
 							for i in range(-int(-int(filesize)//CHUNK_SIZE)):
-								fileChunk[filename][str(i)] = {address}
+								fileChunk[filename][str(i)] = {(destHost,destPort)}
 						print(f"Sent file {filename}")
 						#print("breaked add one file")
 						break
@@ -125,7 +131,7 @@ def FLsR(client_socket, address):
 		try:
 			filename = client_socket.recv(BUFFER_SIZE).decode()
 			print(filename)
-			#print("3.0000000000000001")
+			print("3.0000000000000001")
 			
 			if str(filename) in fileLocation:
 				print(fileLocation[str(filename)])
@@ -136,7 +142,7 @@ def FLsR(client_socket, address):
 				print("\n".join(temp))
 				client_socket.send("\n".join(temp).encode())
 			else:
-				#print('33333333333333')
+				print('33333333333333')
 				client_socket.send("None".encode())
 			break
 		except BlockingIOError:
@@ -145,7 +151,7 @@ def FLsR(client_socket, address):
 			print(f"Error handling client {address}: {str(e)}")
 			client_socket.close()
 			break
-	print(f"\File List Request from client {address}")
+	print(f"\File Locations Request from client {address}")
 # Function to handle a client's requests
 
 # Function to get file size
@@ -170,7 +176,7 @@ def GFS(client_socket, address):
 			print(f"Error handling client {address}: {str(e)}")
 			client_socket.close()
 			break
-	print(f"\File List Request from client {address}")
+	print(f"\File Size Request from client {address}")
 	
 def CRR(client_socket, address):
 	print("start Chunk Register Request")
@@ -183,13 +189,17 @@ def CRR(client_socket, address):
 				break
 			idx = temp.rindex(",")
 			filename,chunkNum = temp[:idx],temp[idx+1:]
+			print(address)
+			host,port = address
+			port -= 100
+			address = host,port
 			print(temp)
 			print(filename)
 			print(chunkNum)
 			print(client_socket.getsockname())
 			print(address)
 			if str(filename) in fileChunk:
-				fileChunk[filename][chunkNum].append(address)
+				fileChunk[filename][chunkNum].add(address)
 			else:
 				fileChunk[filename][chunkNum] = {address}
 			print(f"Sent file {filename}")
@@ -228,7 +238,30 @@ def FCR(client_socket, address):
 			client_socket.close()
 			return None
 
-
+def CH(client_socket, address):
+	print("start current history")
+	while True:
+		try:
+			filename = client_socket.recv(BUFFER_SIZE).decode()
+			print(filename)
+			#print("3.0000000000000001")
+			
+			if str(filename) in fileChunk:
+				print(fileChunk[str(filename)])
+				
+				client_socket.send(pickle.dumps(fileChunk[filename]))
+			else:
+				print('33333333333333')
+				client_socket.send("None".encode())
+				print('4444444444444443')
+			break
+		except BlockingIOError:
+			pass
+		except Exception as e:
+			print(f"Error handling on CH {address}: {str(e)}")
+			client_socket.close()
+			break
+	print(f"\current history Request from client {address}")
 		
 	
 			
@@ -258,6 +291,8 @@ def handle_client(client_socket, address):
 				CRR(client_socket, address)
 			elif choice == "\File Chunk Request":
 				FCR(client_socket, address)
+			elif choice == "\Current History":
+				CH(client_socket, address)
 				
 
 		except BlockingIOError:
@@ -284,7 +319,7 @@ def main(host, port):
 	server_socket.close()
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	#return None
-	server_socket.setblocking(False)
+	#server_socket.setblocking(False)
 	server_socket.bind((host, port))
 	server_socket.listen()
 	server = server_socket
@@ -313,4 +348,3 @@ def main(host, port):
 if __name__ == "__main__":
 	host, port = sys.argv[1], int(sys.argv[2])
 	main(host, port)
-
